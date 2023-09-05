@@ -1,12 +1,14 @@
-from sqlalchemy import create_engine, Column, String, Integer
+from sqlalchemy import create_engine
 from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.orm import sessionmaker
 
-BASE_URL = "sqlite:///dataset_livros.db"
-engine = create_engine(BASE_URL)
+DATABASE_URL = "sqlite:///./registro_livro.db"
+engine = create_engine(DATABASE_URL)
 SessionLocal = sessionmaker(engine)
 
-def get_bd():
+Base = declarative_base()
+
+def get_db():
     db = SessionLocal()
     try:
         yield db

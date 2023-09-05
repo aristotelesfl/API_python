@@ -1,51 +1,41 @@
-from fastapi import FastAPI, Depends
-from sqlalchemy import create_engine, Column, String, Integer
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy.orm import Session, sessionmaker
-from pydantic import BaseModel
+from fastapi import FastAPI, Depends, HTTPException
+from sqlalchemy.orm import Session
+from database import engine, get_db
+from core import LivroCore
+from models import Livros
+from schemas import LivrosCreate, LivrosResponse, LivrosUpdate
 
 app = FastAPI()
 
-BASE_URL = "sqlite:///dataset_livros.db"
+# Cria as tabelas no banco de dados
+Livros.metadata.create_all(bind=engine)
 
-engine = create_engine(BASE_URL)
+@app.post("/livros/", response_model=LivrosResponse)
+def create_livro(livro: LivrosCreate, db: Session = Depends(get_db)):
+    return LivroCore.create_book(db, Livros(**livro.dict()))
 
-SessionLocal = sessionmaker(engine)
+@app.get("/livros/", response_model=list[LivrosResponse])
+def read_livros(skip: int = 0, limit: int = 10, db: Session = Depends(get_db)):
+    return LivroCore.get_books(db, skip, limit)
 
-Base = declarative_base()
+@app.get("/livros/{livro_id}", response_model=LivrosResponse)
+def read_livro(livro_id: int, db: Session = Depends(get_db)):
+    livro = LivroCore.get_book(db, livro_id)
+    if livro is None:
+        raise HTTPException(status_code=404, detail="Livro não encontrado")
+    return livro
 
-class User(Base):
-    __tablename__ = "users"
+@app.put("/livros/{livro_id}", response_model=LivrosResponse)
+def update_livro(livro_id: int, livro: LivrosUpdate, db: Session = Depends(get_db)):
+    existing_livro = LivroCore.get_book(db, livro_id)
+    if existing_livro is None:
+        raise HTTPException(status_code=404, detail="Livro não encontrado")
+    new_data = livro.dict()
+    return LivroCore.update_book(db, livro_id, new_data)
 
-    id: int = Column(Integer, primary_key=True, index=True)
-    username: str = Column(String, nullable=False)
-
-Base.metadata.create_all(engine)
-
-def get_bd():
-    db = SessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-class UserBase(BaseModel):
-    username: str
-
-@app.post("/user")
-def create_user(user: UserBase, db: Session = Depends(get_bd)):
-    db_user = User(username = user.username)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-@app.get("/users")
-def read_users(db: Session = Depends(get_bd)):
-    users = db.query(User).all()
-    return {"Users": users}
-
-@app.get(("/user/{id_user}"))
-def read_user(id_user: int, db: Session = Depends(get_bd)):
-    user = db.query(User).filter(User.id == id_user).all()
-    return {"User": user}
+@app.delete("/livros/{livro_id}", response_model=LivrosResponse)
+def delete_livro(livro_id: int, db: Session = Depends(get_db)):
+    existing_livro = LivroCore.get_book(db, livro_id)
+    if existing_livro is None:
+        raise HTTPException(status_code=404, detail="Livro não encontrado")
+    return LivroCore.delete_book(db, livro_id)
