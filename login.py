@@ -42,4 +42,4 @@ def login(data: OAuth2PasswordRequestForm = Depends()):
 @app.get('/protected')
 def protected_rout(user = Depends(manager)):
     print(user)
-    return {"user": user}
+    return {"user": user   dd}
